@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Web BIM — IFC Viewer</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- three.js + web-ifc-three (IFCLoader). Versions pinned for compatibility. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.149.0/build/three.module.js",
+      "three/examples/jsm/controls/OrbitControls": "https://unpkg.com/three@0.149.0/examples/jsm/controls/OrbitControls.js",
+      "three/examples/jsm/loaders/IFCLoader": "https://unpkg.com/three@0.149.0/examples/jsm/loaders/IFCLoader.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <!-- Top toolbar -->
+    <header id="toolbar">
+      <div class="brand">
+        <span class="logo">▣</span>
+        <span class="title">Web BIM</span>
+        <span class="subtitle">IFC Viewer</span>
+      </div>
+      <div class="tools">
+        <label class="btn primary" for="file-input" title="Open an .ifc file">
+          📁 Open IFC
+        </label>
+        <input id="file-input" type="file" accept=".ifc" hidden />
+        <button class="btn" id="btn-fit"       title="Fit model to view">⌖ Fit</button>
+        <button class="btn" id="btn-grid"      title="Toggle grid">▦ Grid</button>
+        <button class="btn" id="btn-wire"      title="Toggle wireframe">▧ Wire</button>
+        <button class="btn" id="btn-clip"      title="Toggle section plane">✂ Section</button>
+        <button class="btn" id="btn-iso"       title="Isolate selection">◉ Isolate</button>
+        <button class="btn" id="btn-show"      title="Show all">👁 Show all</button>
+      </div>
+    </header>
+
+    <!-- Main body: left tree, viewport, right properties -->
+    <main id="main">
+      <aside id="tree-panel" class="panel">
+        <div class="panel-head">Spatial Structure</div>
+        <div id="tree" class="panel-body">
+          <p class="hint">Open an IFC model to explore its building hierarchy.</p>
+        </div>
+      </aside>
+
+      <section id="viewport">
+        <div id="drop-zone">
+          <div class="drop-inner">
+            <div class="drop-icon">⬆</div>
+            <h2>Drag &amp; drop an <b>.ifc</b> file here</h2>
+            <p>or click “Open IFC”. Everything runs locally in your browser — no upload.</p>
+          </div>
+        </div>
+        <div id="loader" hidden><div class="spinner"></div><span id="loader-text">Loading model…</span></div>
+        <canvas id="three-canvas"></canvas>
+      </section>
+
+      <aside id="props-panel" class="panel">
+        <div class="panel-head">Properties</div>
+        <div id="props" class="panel-body">
+          <p class="hint">Click an element in the model to inspect its properties and property sets.</p>
+        </div>
+      </aside>
+    </main>
+
+    <footer id="statusbar">
+      <span id="status">Ready.</span>
+      <span id="stats"></span>
+    </footer>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
