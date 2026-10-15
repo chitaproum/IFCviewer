@@ -11,7 +11,16 @@
       "three": "https://unpkg.com/three@0.149.0/build/three.module.js",
       "three/examples/jsm/controls/OrbitControls": "https://unpkg.com/three@0.149.0/examples/jsm/controls/OrbitControls.js",
       "three/examples/jsm/controls/PointerLockControls": "https://unpkg.com/three@0.149.0/examples/jsm/controls/PointerLockControls.js",
-      "three/examples/jsm/loaders/IFCLoader": "https://unpkg.com/three@0.149.0/examples/jsm/loaders/IFCLoader.js"
+      "three/examples/jsm/loaders/IFCLoader": "https://unpkg.com/three@0.149.0/examples/jsm/loaders/IFCLoader.js",
+      "three/examples/jsm/environments/RoomEnvironment": "https://unpkg.com/three@0.149.0/examples/jsm/environments/RoomEnvironment.js",
+      "three/examples/jsm/postprocessing/EffectComposer": "https://unpkg.com/three@0.149.0/examples/jsm/postprocessing/EffectComposer.js",
+      "three/examples/jsm/postprocessing/RenderPass": "https://unpkg.com/three@0.149.0/examples/jsm/postprocessing/RenderPass.js",
+      "three/examples/jsm/postprocessing/ShaderPass": "https://unpkg.com/three@0.149.0/examples/jsm/postprocessing/ShaderPass.js",
+      "three/examples/jsm/postprocessing/SMAAPass": "https://unpkg.com/three@0.149.0/examples/jsm/postprocessing/SMAAPass.js",
+      "three/examples/jsm/postprocessing/Pass": "https://unpkg.com/three@0.149.0/examples/jsm/postprocessing/Pass.js",
+      "three/examples/jsm/shaders/CopyShader": "https://unpkg.com/three@0.149.0/examples/jsm/shaders/CopyShader.js",
+      "three/examples/jsm/shaders/SMAAShader": "https://unpkg.com/three@0.149.0/examples/jsm/shaders/SMAAShader.js",
+      "three/examples/jsm/shaders/GammaCorrectionShader": "https://unpkg.com/three@0.149.0/examples/jsm/shaders/GammaCorrectionShader.js"
     }
   }
   </script>
@@ -26,8 +35,10 @@
       </div>
 
       <div class="tools">
-        <label class="btn primary" for="file-input" title="Open an .ifc file">📁 Open IFC</label>
+        <label class="btn primary" for="file-input" title="Open a local .ifc file">📁 Open IFC</label>
         <input id="file-input" type="file" accept=".ifc" hidden />
+        <button class="btn" id="btn-url"   title="Open an .ifc file from a cloud URL">🔗 Open URL</button>
+        <button class="btn" id="btn-share" title="Copy a shareable link to this model & view">📤 Share</button>
 
         <!-- Views menu -->
         <div class="menu" id="menu-views">

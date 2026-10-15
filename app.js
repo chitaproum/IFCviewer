@@ -2,6 +2,12 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls';
 import { IFCLoader } from 'three/examples/jsm/loaders/IFCLoader';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass';
+import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass';
+import { GammaCorrectionShader } from 'three/examples/jsm/shaders/GammaCorrectionShader';
 
 // ===========================================================================
 // Scene, renderer, cameras
@@ -10,7 +16,7 @@ const canvas = document.getElementById('three-canvas');
 const viewport = document.getElementById('viewport');
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b0e13);
+scene.background = new THREE.Color(0x1a1f27);
 
 const perspCam = new THREE.PerspectiveCamera(60, 1, 0.05, 10000);
 perspCam.position.set(14, 12, 18);
@@ -19,9 +25,30 @@ orthoCam.position.copy(perspCam.position);
 let activeCamera = perspCam;
 let isOrtho = false;
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.localClippingEnabled = true;
+
+// Image-based lighting for soft, realistic shading of the BIM materials
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+
+// Post-processing: crisp SMAA anti-aliasing + correct colour output
+let composer, renderPass, smaaPass;
+function buildComposer() {
+  composer = new EffectComposer(renderer);
+  renderPass = new RenderPass(scene, activeCamera);
+  composer.addPass(renderPass);
+  smaaPass = new SMAAPass(1, 1);
+  composer.addPass(smaaPass);
+  composer.addPass(new ShaderPass(GammaCorrectionShader));
+}
+buildComposer();
 
 let orbit = new OrbitControls(activeCamera, canvas);
 orbit.enableDamping = true;
@@ -35,14 +62,27 @@ const walkVel = new THREE.Vector3();
 let walkSpeed = 1;
 
 // Lights
-scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-const dir = new THREE.DirectionalLight(0xffffff, 0.9); dir.position.set(20, 40, 15); scene.add(dir);
-const dir2 = new THREE.DirectionalLight(0xffffff, 0.35); dir2.position.set(-15, 20, -20); scene.add(dir2);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x3a4150, 0.65));
+const dir = new THREE.DirectionalLight(0xffffff, 1.6);
+dir.position.set(30, 50, 25);
+dir.castShadow = true;
+dir.shadow.mapSize.set(2048, 2048);
+dir.shadow.bias = -0.0004;
+dir.shadow.normalBias = 0.03;
+scene.add(dir);
+scene.add(dir.target);
+const fill = new THREE.DirectionalLight(0xffffff, 0.35);
+fill.position.set(-25, 20, -20);
+scene.add(fill);
 
-// Grid + axes
-const grid = new THREE.GridHelper(100, 100, 0x2b333d, 0x1c232d);
+// Grid + axes + ground shadow catcher
+const grid = new THREE.GridHelper(100, 100, 0x3a4150, 0x262c36);
+grid.material.opacity = 0.6; grid.material.transparent = true;
 const axes = new THREE.AxesHelper(5);
-scene.add(grid); scene.add(axes);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(5000, 5000), new THREE.ShadowMaterial({ opacity: 0.28 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(grid); scene.add(axes); scene.add(ground);
 
 // Clipping planes (one active at a time)
 const planes = {
@@ -59,10 +99,12 @@ let clipFlip = false;
 function resize() {
   const w = viewport.clientWidth || 1, h = viewport.clientHeight || 1;
   renderer.setSize(w, h, false);
+  composer.setSize(w, h);
   perspCam.aspect = w / h; perspCam.updateProjectionMatrix();
   updateOrthoFrustum();
 }
 window.addEventListener('resize', resize);
+setTimeout(resize, 0);
 
 function updateOrthoFrustum() {
   const w = viewport.clientWidth || 1, h = viewport.clientHeight || 1;
@@ -82,7 +124,8 @@ const clock = new THREE.Clock();
   if (walking && walk.isLocked) stepWalk(dt);
   else orbit.update();
   if (isOrtho) updateOrthoFrustum();
-  renderer.render(scene, activeCamera);
+  renderPass.camera = activeCamera;
+  composer.render();
 })();
 
 function stepWalk(dt) {
@@ -122,32 +165,59 @@ const setStatus = (t) => statusEl.textContent = t;
 const showLoader = (t) => { loaderText.textContent = t || 'Loading model…'; loaderEl.hidden = false; };
 const hideLoader = () => { loaderEl.hidden = true; };
 
+let currentModelURL = null;   // set only when the model came from a remote URL (shareable)
+let pendingCam = null;        // camera state to apply after a shared-link load
+
 async function loadIFC(file) {
-  showLoader('Reading ' + file.name + ' …');
-  setStatus('Parsing ' + file.name);
-  const url = URL.createObjectURL(file);
+  currentModelURL = null;
+  await loadModel(URL.createObjectURL(file), file.name, true);
+}
+
+async function loadFromURL(url) {
+  currentModelURL = url;
+  const label = url.split('/').pop().split('?')[0] || 'model.ifc';
+  await loadModel(url, label, false);
+}
+
+async function loadModel(url, label, revoke) {
+  showLoader('Reading ' + label + ' …');
+  setStatus('Parsing ' + label);
   try {
     if (model) await clearModel();
     model = await ifcLoader.loadAsync(url, (p) => {
       if (p && p.total) showLoader('Loading … ' + Math.round((p.loaded / p.total) * 100) + '%');
     });
     modelID = model.modelID;
+    applyModelQuality(model);
     scene.add(model);
     dropZone.classList.add('hidden');
-    hideLoader();                     // hide BEFORE heavier tree build so UI frees up
+    hideLoader();
     fitToModel();
-    await buildTree();                // also fills nodeByID / allElements / storeys
+    if (pendingCam) { applyCameraState(pendingCam); pendingCam = null; }
+    await buildTree();
     populateSelectors();
-    statsEl.textContent = file.name + '  •  ' + countTriangles(model).toLocaleString() + ' triangles';
+    statsEl.textContent = label + '  •  ' + countTriangles(model).toLocaleString() + ' triangles';
     setStatus('Model loaded — ' + allElements.length + ' elements.');
   } catch (err) {
     console.error(err);
+    const net = /fetch|network|load|404|CORS/i.test(err.message || '');
     setStatus('Failed to load IFC: ' + err.message);
-    alert('Could not load this IFC file.\n\n' + err.message);
+    alert('Could not load this IFC file.\n\n' + err.message +
+      (net ? '\n\nIf loading from a URL, the host must allow cross-origin (CORS) access and point to the raw .ifc file.' : ''));
   } finally {
     hideLoader();
-    URL.revokeObjectURL(url);
+    if (revoke) URL.revokeObjectURL(url);
   }
+}
+
+// Give the IFC meshes shadows + environment response for a richer look.
+function applyModelQuality(obj) {
+  obj.traverse((c) => {
+    if (!c.isMesh) return;
+    c.castShadow = true; c.receiveShadow = true;
+    const mats = Array.isArray(c.material) ? c.material : [c.material];
+    mats.forEach((m) => { if (m) { m.envMapIntensity = 0.7; m.needsUpdate = true; } });
+  });
 }
 
 async function clearModel() {
@@ -184,6 +254,15 @@ function fitToModel() {
   const g = Math.ceil(maxDim * 1.5 / 10) * 10;
   grid.scale.setScalar(g / 100);
   grid.position.set(center.x, box.min.y, center.z);
+  ground.position.set(center.x, box.min.y - maxDim * 0.001, center.z);
+  // Aim the key light at the model and size its shadow frustum to fit
+  dir.position.set(center.x + maxDim, center.y + maxDim * 1.6, center.z + maxDim * 0.8);
+  dir.target.position.copy(center);
+  const sc = dir.shadow.camera;
+  const r = maxDim * 1.1;
+  sc.left = -r; sc.right = r; sc.top = r; sc.bottom = -r;
+  sc.near = maxDim * 0.05; sc.far = maxDim * 6;
+  sc.updateProjectionMatrix();
   updateOrthoFrustum();
   orbit.update();
 }
@@ -586,6 +665,49 @@ document.querySelectorAll('.menu-list').forEach((l) => l.addEventListener('click
 // ===========================================================================
 const fileInput = document.getElementById('file-input');
 fileInput.addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; if (f) loadIFC(f); });
+
+// Open from cloud URL
+document.getElementById('btn-url').addEventListener('click', () => {
+  const url = prompt('Paste a direct link to an .ifc file (the host must allow CORS):', currentModelURL || 'https://');
+  if (url && url.trim()) loadFromURL(url.trim());
+});
+
+// Shareable link (model URL + current camera view) ---------------------------
+function cameraState() {
+  const p = activeCamera.position, t = orbit.target;
+  return [p.x, p.y, p.z, t.x, t.y, t.z, isOrtho ? 1 : 0].map((n) => +n.toFixed(3)).join(',');
+}
+function applyCameraState(s) {
+  const a = String(s).split(',').map(Number);
+  if (a.length < 6 || a.some(isNaN)) return;
+  if (a[6] === 1 && !isOrtho) setProjection('ortho');
+  if (a[6] === 0 && isOrtho) setProjection('persp');
+  activeCamera.position.set(a[0], a[1], a[2]);
+  orbit.target.set(a[3], a[4], a[5]);
+  updateOrthoFrustum();
+  orbit.update();
+}
+document.getElementById('btn-share').addEventListener('click', async () => {
+  if (!currentModelURL) {
+    alert('Sharing a link requires the model to be loaded from a cloud URL.\n\n' +
+          'Use “Open URL” with a direct .ifc link (e.g. a public bucket / raw GitHub / signed URL), then click Share.');
+    return;
+  }
+  const link = location.origin + location.pathname +
+    '#ifc=' + encodeURIComponent(currentModelURL) + '&cam=' + encodeURIComponent(cameraState());
+  try { await navigator.clipboard.writeText(link); setStatus('Shareable link copied to clipboard.'); }
+  catch (e) { prompt('Copy this shareable link:', link); }
+});
+
+// Auto-load from a shared link (#ifc=...&cam=...)
+(function initFromHash() {
+  const h = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const ifc = h.get('ifc');
+  if (ifc) {
+    pendingCam = h.get('cam');
+    loadFromURL(decodeURIComponent(ifc));
+  }
+})();
 
 // Drag & drop
 ['dragenter', 'dragover'].forEach((ev) => viewport.addEventListener(ev, (e) => { e.preventDefault(); if (!model) { dropZone.classList.remove('hidden'); dropZone.classList.add('hover'); } }));

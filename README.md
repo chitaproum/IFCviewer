@@ -9,6 +9,15 @@ to any server. Built on [Three.js](https://threejs.org/) + the
 ## Features
 
 - Open an IFC model from the file picker **or drag & drop** it onto the viewport.
+- **Open from a cloud URL** — load an `.ifc` straight from a public bucket,
+  signed URL, or raw GitHub link (the host must allow CORS — see note below).
+- **Shareable view link** — copy a link that re-opens the same cloud model at
+  your current camera position/view (`#ifc=…&cam=…`). Local files can't be
+  shared because the recipient's browser has no access to them.
+- **High-quality rendering** — anti-aliasing (SMAA), ACES filmic tone mapping,
+  sRGB output, image-based lighting (PMREM room environment) plus a key light
+  with soft shadows and a hemisphere fill, so models look smooth and shaded
+  rather than flat/jagged.
 - Orbit / pan / zoom 3D navigation.
 - **Views menu** — Isometric / Top / Bottom / Front / Back / Left / Right presets
   and a **Perspective ↔ Orthographic** projection toggle.
@@ -76,6 +85,13 @@ git push -u origin main
   to local paths.
 - Very large IFC files are parsed in a single thread; expect a short wait on
   first load. Triangle count is shown in the status bar.
+- **Opening a model from a URL / sharing a link needs CORS.** The browser can
+  only fetch a remote `.ifc` if the host returns
+  `Access-Control-Allow-Origin`. Use a direct/raw file link (not an HTML
+  “preview” page). Public buckets (S3/GCS with CORS enabled), signed URLs, or
+  `raw.githubusercontent.com` work; Google Drive / Dropbox “share” pages do
+  not unless you use their direct-download form. Shared links only work for
+  cloud-hosted models — a local file picked from disk cannot be shared.
 
 ## Files
 
