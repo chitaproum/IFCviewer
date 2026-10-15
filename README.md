@@ -10,11 +10,21 @@ to any server. Built on [Three.js](https://threejs.org/) + the
 
 - Open an IFC model from the file picker **or drag & drop** it onto the viewport.
 - Orbit / pan / zoom 3D navigation.
+- **Views menu** — Isometric / Top / Bottom / Front / Back / Left / Right presets
+  and a **Perspective ↔ Orthographic** projection toggle.
+- **Storey / level selector** — isolate any building storey instantly.
 - **Spatial structure tree** (Project → Site → Building → Storey → Elements).
 - **Click to select** any element; hover to pre-highlight.
-- **Properties panel**: attributes, property sets (Psets) and quantities (Qto).
-- Toolbar: Fit view, toggle grid, wireframe, horizontal **section plane**,
-  **isolate** selection, show all.
+- **Selection modes** — single element, parent assembly, or all of the same IFC
+  type; plus **multi-select** (Ctrl/Cmd+click) to inspect several elements.
+- **Search & filter** — find elements by name, express ID, or IFC class
+  (`IfcWall`, `IfcPipeFitting`, …) and isolate the matches.
+- **Properties panel** — attributes, property sets (Psets) and quantities (Qto).
+- **Section tool** — clipping planes on the X, Y or Z axis with a position slider
+  and flip-side toggle.
+- **Walk / fly mode** — first-person navigation (WASD + mouse look, Q/E up/down,
+  Esc to exit). (No collision detection — you can pass through geometry.)
+- Toolbar: Fit view, toggle grid, wireframe, isolate selection, show all.
 - Keyboard: `F` = fit view, `Esc` = clear selection.
 - Responsive dark UI.
 

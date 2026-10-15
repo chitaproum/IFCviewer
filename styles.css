@@ -4,6 +4,10 @@
   --ok:#3fb950; --warn:#d29922;
 }
 *{box-sizing:border-box}
+/* Critical: author display rules below (e.g. #loader{display:flex}) would
+   otherwise override the HTML [hidden] attribute and keep the overlay on
+   screen forever. This guarantees hidden really hides. */
+[hidden]{display:none !important}
 html,body{height:100%;margin:0}
 body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   background:var(--bg);color:var(--text);overflow:hidden}
@@ -23,6 +27,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Ar
 .btn.primary{background:var(--accent-2);border-color:var(--accent-2);color:#fff;font-weight:600}
 .btn.primary:hover{background:var(--accent)}
 .btn.active{background:var(--accent-2);border-color:var(--accent);color:#fff}
+
+/* Dropdown menus */
+.menu{position:relative;display:inline-block}
+.menu-list{position:absolute;top:calc(100% + 4px);left:0;z-index:50;min-width:180px;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:5px;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);display:none}
+.menu.open .menu-list{display:block}
+.menu-list button{display:block;width:100%;text-align:left;background:none;border:0;
+  color:var(--text);padding:7px 10px;border-radius:6px;font-size:13px;cursor:pointer}
+.menu-list button:hover{background:var(--accent-2);color:#fff}
+.menu-list button.active{color:var(--accent);font-weight:600}
+.menu-sep{height:1px;background:var(--line);margin:5px 2px}
+.menu-slider{padding:6px 10px;font-size:12px;color:var(--muted)}
+.menu-slider input[type=range]{width:100%;margin-top:4px}
+.menu-check{display:flex;align-items:center;gap:7px;padding:7px 10px;font-size:13px;cursor:pointer}
+.menu-check input{accent-color:var(--accent)}
+
+/* Search */
+.search{display:flex;align-items:center;gap:6px}
+.search select,.search input[type=text]{background:var(--panel-2);border:1px solid var(--line);
+  color:var(--text);border-radius:7px;padding:6px 9px;font-size:13px}
+.search input[type=text]{width:190px}
+.search select:focus,.search input:focus{outline:none;border-color:var(--accent)}
+
+/* Walk hint */
+#walk-hint{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:7;
+  background:rgba(28,35,45,.92);border:1px solid var(--line);border-radius:8px;
+  padding:8px 14px;font-size:13px;color:var(--text)}
 
 /* Main layout */
 #main{flex:1;display:grid;grid-template-columns:260px 1fr 300px;min-height:0}
