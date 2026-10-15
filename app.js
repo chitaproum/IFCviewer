@@ -60,8 +60,11 @@ resize();
 // IFC loader
 // ---------------------------------------------------------------------------
 const ifcLoader = new IFCLoader();
-// WASM parser served from CDN, version matched to web-ifc-three in three r149.
-ifcLoader.ifcManager.setWasmPath('https://unpkg.com/web-ifc@0.0.36/');
+// WASM parser MUST match the IFC glue code bundled inside this exact three
+// release, otherwise the browser throws
+//   LinkError: WebAssembly.instantiate(): Import #0 "a" "a": requires a callable
+// So we load web-ifc.wasm from three's OWN ifc folder (same version = same ABI).
+ifcLoader.ifcManager.setWasmPath('https://unpkg.com/three@0.149.0/examples/jsm/loaders/ifc/');
 
 let model = null;              // loaded IFC mesh
 let modelID = null;

@@ -55,9 +55,12 @@ git push -u origin main
 
 ## Notes & limits
 
-- CDN-pinned versions: `three@0.149.0` + `web-ifc@0.0.36` (WASM parser matched to
-  the `web-ifc-three` bundled in that Three.js release). If you later bump
-  Three.js, update the `setWasmPath(...)` version in `app.js` to match.
+- CDN-pinned version: `three@0.149.0`. The `web-ifc.wasm` parser is loaded from
+  that same Three.js release's `examples/jsm/loaders/ifc/` folder, so the WASM
+  binary always matches the IFC glue code (this avoids the
+  `WebAssembly.instantiate ... requires a callable` LinkError). If you bump
+  Three.js, update **both** the import-map version and the `setWasmPath(...)`
+  version in `app.js` so they stay identical.
 - For fully offline use, download `three`, the example modules and the
   `web-ifc` `.wasm`/`.js` into the folder and update the import map + wasm path
   to local paths.
