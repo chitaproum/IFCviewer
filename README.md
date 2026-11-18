@@ -48,6 +48,8 @@ materials and block instances may come through simplified or missing.
 ## Features
 
 - Open from disk, **drag & drop**, or a **web link** (`Open URL`).
+- The start screen is gone: the viewport opens clean, and the format list is
+  available on demand from the **Formats** button in the toolbar (Esc closes it).
 - **Move** menu (mouse navigation): **Orbit**, **Pan** and **Zoom** modes - the
   left mouse button changes behaviour per mode, so the view can be slid like a
   drawing sheet instead of only rotating it. Middle button zooms and the right
@@ -57,6 +59,9 @@ materials and block instances may come through simplified or missing.
     isometric view; grid, shadows and auto-rotate can be switched on and off.
 - **Floating navigation rail** (right edge of the viewport) for one-click orbit,
   pan, zoom, fit and home - no menu needed.
+- **Adjustable grid**: cell spacing and overall extent can be typed in the Move
+  menu (model units, metres for IFC). `Auto grid` keeps them matched to the
+  model size; switch it off to set your own 1 m / 5 m / 10 m reference grid.
 - Model tree on the left + **Properties** tab (IFC attributes, property sets and
   quantities; for other formats: name, type, vertex/triangle counts, size).
 - **Selection**: click a part; Ctrl/Cmd/Shift-click adds; modes for single part,

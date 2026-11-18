@@ -193,3 +193,24 @@ main{display:grid; grid-template-columns:280px 1fr; min-height:0}
   .overlay-card h1{font-size:30px}
   #search{width:130px}
 }
+
+/* number fields inside the menus */
+.menu-slider input[type=number]{
+  width:92px; background:#121820; border:1px solid #2b3441; color:var(--txt);
+  border-radius:6px; padding:3px 6px; font-size:12px; text-align:right; outline:none;
+}
+.menu-slider input[type=number]:focus{border-color:var(--accent)}
+
+/* close button on the formats card */
+.card-close{
+  position:absolute; right:10px; top:8px; width:28px; height:28px; border-radius:8px;
+  background:transparent; border:1px solid transparent; color:var(--muted); cursor:pointer; font-size:14px;
+}
+.card-close:hover{background:#26313f; color:#fff}
+
+/* tiny empty-state line instead of the big welcome card */
+#empty-hint{
+  position:absolute; left:50%; top:46%; transform:translate(-50%,-50%);
+  color:#7c8899; font-size:13px; text-align:center; pointer-events:none; user-select:none;
+}
+#empty-hint b{color:#a8b6c8; font-weight:600}

@@ -36,6 +36,9 @@
         <button id="btn-home">⌂ Home view <span class="kbd">H</span></button>
         <div class="menu-sep"></div>
         <label class="menu-check"><input type="checkbox" id="toggle-grid" checked /> Show grid</label>
+        <div class="menu-slider"><label>Cell</label><input type="number" id="grid-cell" step="0.05" min="0.001" value="1" title="Grid spacing in model units" /></div>
+        <div class="menu-slider"><label>Extent</label><input type="number" id="grid-extent" step="1" min="1" value="100" title="Overall grid width in model units" /></div>
+        <label class="menu-check"><input type="checkbox" id="grid-auto" checked /> Auto grid (fit model)</label>
         <label class="menu-check"><input type="checkbox" id="toggle-shadow" checked /> Show shadows</label>
         <label class="menu-check"><input type="checkbox" id="toggle-rot" /> Auto-rotate</label>
       </div>
@@ -101,6 +104,7 @@
 
     <button class="btn" id="btn-walk" title="First-person walk-through">🚶 Walk</button>
     <button class="btn" id="btn-fit" title="Fit model in view (F)">⤢ Fit</button>
+    <button class="btn" id="btn-formats" title="Which file formats can I open?">ℹ Formats</button>
     <input id="search" type="search" placeholder="Search name / ID / type…" />
   </div>
 </header>
@@ -118,7 +122,10 @@
   <div id="viewport">
     <canvas id="c"></canvas>
 
-    <div id="start" class="overlay-card">
+    <div id="empty-hint">Drop a 3D model here, or click <b>📂 Open</b></div>
+
+    <div id="start" class="overlay-card" hidden>
+      <button class="card-close" id="start-close" title="Close">✕</button>
       <h1>Visualise and explore 3D models</h1>
       <p>Drop a file here, or open one. Supported formats:</p>
       <div class="chips" id="chips"></div>

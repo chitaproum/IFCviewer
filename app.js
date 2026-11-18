@@ -98,9 +98,20 @@ scene.add(fill);
 }
 
 /* ------------------------------------------------------- helpers + ground */
-const grid = new THREE.GridHelper(100, 100, 0x2f3a47, 0x1b232d);
-grid.material.transparent = true;
-grid.material.opacity = 0.75;
+let gridOn = true;
+let gridAuto = true;   // follow the model size
+let gridCell = 1;      // spacing in model units
+let gridExtent = 100;  // overall width in model units
+
+function makeGridHelper(size, divisions) {
+  const g = new THREE.GridHelper(size, divisions, 0x2f3a47, 0x1b232d);
+  g.material.transparent = true;
+  g.material.opacity = 0.75;
+  g.material.depthWrite = false;
+  return g;
+}
+
+let grid = makeGridHelper(100, 100);
 scene.add(grid);
 
 const axes = new THREE.AxesHelper(5);
@@ -211,6 +222,44 @@ function modelBox() {
   return b;
 }
 
+function niceStep(v) {
+  const x = Math.max(1e-6, Math.abs(v) || 1);
+  const p = Math.pow(10, Math.floor(Math.log10(x)));
+  const n = x / p;
+  const s = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
+  return s * p;
+}
+
+function syncGridInputs() {
+  const c = $('grid-cell'), e = $('grid-extent');
+  if (c) c.value = gridCell >= 1 ? +gridCell.toFixed(2) : +gridCell.toFixed(3);
+  if (e) e.value = +gridExtent.toFixed(1);
+}
+
+/* rebuild the grid: auto = derived from the model, manual = user values */
+function updateGrid() {
+  const b = state.root ? modelBox() : new THREE.Box3(new THREE.Vector3(-10, 0, -10), new THREE.Vector3(10, 1, 10));
+  const size = b.getSize(new THREE.Vector3());
+  const span = Math.max(size.x, size.z, 1);
+  if (gridAuto) {
+    gridCell = niceStep(span / 20);
+    gridExtent = Math.max(gridCell * 4, Math.ceil((span * 1.9) / gridCell) * gridCell);
+    syncGridInputs();
+  }
+  const cell = Math.max(1e-4, gridCell);
+  const extent = Math.max(cell * 2, gridExtent);
+  const divs = Math.max(2, Math.min(600, Math.round(extent / cell)));
+  const c = b.getCenter(new THREE.Vector3());
+
+  scene.remove(grid);
+  if (grid.geometry) grid.geometry.dispose();
+  if (grid.material) grid.material.dispose();
+  grid = makeGridHelper(extent, divs);
+  grid.position.set(c.x, b.min.y + span * 0.0008, c.z);
+  grid.visible = gridOn;
+  scene.add(grid);
+}
+
 function fitToModel() {
   if (!state.root) return;
   const box = modelBox();
@@ -227,9 +276,7 @@ function fitToModel() {
   orthoCam.userData.halfHeight = maxDim * 0.75;
   updateOrthoFrustum();
 
-  const g = Math.ceil((maxDim * 1.6) / 10) * 10;
-  grid.scale.setScalar(Math.max(0.01, g / 100));
-  grid.position.set(center.x, box.min.y, center.z);
+  updateGrid();
   axes.position.set(box.min.x, box.min.y, box.min.z);
   axes.scale.setScalar(Math.max(0.01, maxDim / 10));
 
@@ -372,7 +419,8 @@ function homeView() {
 }
 
 function setGridVisible(on) {
-  grid.visible = on;
+  gridOn = on;
+  if (grid) grid.visible = on;
 }
 
 function setShadowsOn(on) {
@@ -814,6 +862,7 @@ async function loadBuffer(buf, name, url) {
 
   hideLoader();
   $('start').hidden = true;
+  $('empty-hint').hidden = true;
   setStatus(state.name + ' — ' + fmt.label + ' loaded.' + (state.isIFC ? '' : ' Click a part to inspect it.'));
 
   // restore a shared camera view if the link carried one
@@ -1702,12 +1751,42 @@ $('btn-home').addEventListener('click', () => { homeView(); closeMenus(null); })
 $('rail-home').addEventListener('click', () => homeView());
 $('btn-zoom-sel').addEventListener('click', () => { zoomToSelection(); closeMenus(null); });
 $('toggle-grid').addEventListener('change', (e) => { setGridVisible(e.target.checked); });
+$('grid-auto').addEventListener('change', (e) => {
+  gridAuto = e.target.checked;
+  updateGrid();
+  setStatus(gridAuto ? 'Grid follows the model size.' : 'Grid fixed at ' + gridCell + ' x ' + gridCell + ' units.');
+});
+$('grid-cell').addEventListener('change', (e) => {
+  const v = parseFloat(e.target.value);
+  if (!isFinite(v) || v <= 0) { syncGridInputs(); return; }
+  gridCell = v;
+  gridAuto = false;
+  $('grid-auto').checked = false;
+  updateGrid();
+  setStatus('Grid cell = ' + gridCell + ' model units.');
+});
+$('grid-extent').addEventListener('change', (e) => {
+  const v = parseFloat(e.target.value);
+  if (!isFinite(v) || v <= 0) { syncGridInputs(); return; }
+  gridExtent = v;
+  gridAuto = false;
+  $('grid-auto').checked = false;
+  updateGrid();
+  setStatus('Grid extent = ' + gridExtent + ' model units.');
+});
+
+// formats card (hidden by default, opened from the toolbar)
+$('btn-formats').addEventListener('click', () => { $('start').hidden = !$('start').hidden; });
+$('start-close').addEventListener('click', () => { $('start').hidden = true; });
 $('toggle-shadow').addEventListener('change', (e) => { setShadowsOn(e.target.checked); });
 $('toggle-rot').addEventListener('change', (e) => {
   orbit.autoRotate = e.target.checked;
   orbit.autoRotateSpeed = 0.9;
 });
-canvas.addEventListener('pointerdown', () => canvas.classList.add('dragging'));
+canvas.addEventListener('pointerdown', () => {
+  canvas.classList.add('dragging');
+  if (!$('start').hidden) $('start').hidden = true;
+});
 window.addEventListener('pointerup', () => canvas.classList.remove('dragging'));
 
 // views + projection
@@ -1786,7 +1865,10 @@ document.addEventListener('keydown', (e) => {
   if (k === '2') setMoveMode('pan');
   if (k === '3') setMoveMode('zoom');
   if (k === 'z') zoomToSelection();
-  if (e.key === 'Escape') { clearSelection(); }
+  if (e.key === 'Escape') {
+    if (!$('start').hidden) { $('start').hidden = true; return; }
+    clearSelection();
+  }
 });
 
 /* --------------------------------------------------------------- the loop */
