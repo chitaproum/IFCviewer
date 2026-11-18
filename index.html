@@ -1,152 +1,127 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Web BIM — IFC Viewer</title>
-  <link rel="stylesheet" href="styles.css" />
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.149.0/build/three.module.js",
-      "three/examples/jsm/controls/OrbitControls": "https://unpkg.com/three@0.149.0/examples/jsm/controls/OrbitControls.js",
-      "three/examples/jsm/controls/PointerLockControls": "https://unpkg.com/three@0.149.0/examples/jsm/controls/PointerLockControls.js",
-      "three/examples/jsm/loaders/IFCLoader": "https://unpkg.com/three@0.149.0/examples/jsm/loaders/IFCLoader.js",
-      "three/examples/jsm/environments/RoomEnvironment": "https://unpkg.com/three@0.149.0/examples/jsm/environments/RoomEnvironment.js",
-      "three/examples/jsm/postprocessing/EffectComposer": "https://unpkg.com/three@0.149.0/examples/jsm/postprocessing/EffectComposer.js",
-      "three/examples/jsm/postprocessing/RenderPass": "https://unpkg.com/three@0.149.0/examples/jsm/postprocessing/RenderPass.js",
-      "three/examples/jsm/postprocessing/ShaderPass": "https://unpkg.com/three@0.149.0/examples/jsm/postprocessing/ShaderPass.js",
-      "three/examples/jsm/postprocessing/SMAAPass": "https://unpkg.com/three@0.149.0/examples/jsm/postprocessing/SMAAPass.js",
-      "three/examples/jsm/postprocessing/Pass": "https://unpkg.com/three@0.149.0/examples/jsm/postprocessing/Pass.js",
-      "three/examples/jsm/shaders/CopyShader": "https://unpkg.com/three@0.149.0/examples/jsm/shaders/CopyShader.js",
-      "three/examples/jsm/shaders/SMAAShader": "https://unpkg.com/three@0.149.0/examples/jsm/shaders/SMAAShader.js",
-      "three/examples/jsm/shaders/GammaCorrectionShader": "https://unpkg.com/three@0.149.0/examples/jsm/shaders/GammaCorrectionShader.js"
-    }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>3D Model Viewer</title>
+<link rel="stylesheet" href="styles.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.149.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.149.0/examples/jsm/"
   }
-  </script>
+}
+</script>
 </head>
 <body>
-  <div id="app">
-    <header id="toolbar">
-      <div class="brand">
-        <span class="logo">▣</span>
-        <span class="title">Web BIM</span>
-        <span class="subtitle">IFC Viewer</span>
+
+<header id="topbar">
+  <div class="brand"><span class="dot"></span>3D Model Viewer</div>
+
+  <div class="tools">
+    <button class="btn primary" id="btn-open" title="Open a 3D model from this computer">📂 Open</button>
+    <button class="btn" id="btn-url" title="Load a model from a web link">🔗 Open URL</button>
+    <button class="btn" id="btn-share" title="Copy a link to this model and camera view">📤 Share</button>
+
+    <div class="menu" id="menu-views">
+      <button class="btn menu-btn">🧭 Views ▾</button>
+      <div class="menu-list">
+        <button data-view="iso" class="active">✓ Isometric</button>
+        <button data-view="top">Top</button>
+        <button data-view="bottom">Bottom</button>
+        <button data-view="front">Front</button>
+        <button data-view="back">Back</button>
+        <button data-view="left">Left</button>
+        <button data-view="right">Right</button>
+        <div class="menu-sep"></div>
+        <button data-proj="persp" class="proj active">✓ Perspective</button>
+        <button data-proj="ortho" class="proj">Orthographic</button>
       </div>
+    </div>
 
-      <div class="tools">
-        <label class="btn primary" for="file-input" title="Open a local .ifc file">📁 Open IFC</label>
-        <input id="file-input" type="file" accept=".ifc" hidden />
-        <button class="btn" id="btn-url"   title="Open an .ifc file from a cloud URL">🔗 Open URL</button>
-        <button class="btn" id="btn-share" title="Copy a shareable link to this model & view">📤 Share</button>
-
-        <!-- Views menu -->
-        <div class="menu" id="menu-views">
-          <button class="btn menu-btn">📷 Views ▾</button>
-          <div class="menu-list">
-            <button data-view="iso">Isometric</button>
-            <button data-view="top">Top</button>
-            <button data-view="bottom">Bottom</button>
-            <button data-view="front">Front</button>
-            <button data-view="back">Back</button>
-            <button data-view="left">Left</button>
-            <button data-view="right">Right</button>
-            <div class="menu-sep"></div>
-            <button data-proj="persp" class="proj active">✓ Perspective</button>
-            <button data-proj="ortho" class="proj">Orthographic</button>
+    <div class="menu" id="menu-section">
+      <button class="btn menu-btn">✂ Section ▾</button>
+      <div class="menu-list">
+        <button data-axis="off" class="active">✓ Off</button>
+        <button data-axis="x">Clip X axis</button>
+        <button data-axis="y">Clip Y (horizontal)</button>
+        <button data-axis="z">Clip Z axis</button>
+        <button data-axis="box">Box clip (crop region)</button>
+        <div class="menu-sep"></div>
+        <div id="axis-controls" hidden>
+          <div class="menu-slider">
+            <label>Position</label>
+            <input type="range" id="clip-range" min="0" max="100" value="50" />
           </div>
+          <label class="menu-check"><input type="checkbox" id="clip-flip" /> Flip side</label>
         </div>
-
-        <button class="btn" id="btn-fit" title="Fit model to view (F)">⌖ Fit</button>
-
-        <!-- Storey / level selector -->
-        <div class="menu" id="menu-storey">
-          <button class="btn menu-btn">🏢 Storey ▾</button>
-          <div class="menu-list" id="storey-list">
-            <button data-storey="all" class="active">✓ All levels</button>
-          </div>
+        <div id="box-controls" hidden>
+          <div class="menu-slider"><label>X min</label><input type="range" id="box-xmin" min="0" max="100" value="0" /></div>
+          <div class="menu-slider"><label>X max</label><input type="range" id="box-xmax" min="0" max="100" value="100" /></div>
+          <div class="menu-slider"><label>Y min</label><input type="range" id="box-ymin" min="0" max="100" value="0" /></div>
+          <div class="menu-slider"><label>Y max</label><input type="range" id="box-ymax" min="0" max="100" value="100" /></div>
+          <div class="menu-slider"><label>Z min</label><input type="range" id="box-zmin" min="0" max="100" value="0" /></div>
+          <div class="menu-slider"><label>Z max</label><input type="range" id="box-zmax" min="0" max="100" value="100" /></div>
+          <button class="btn small" id="box-reset">↺ Reset box</button>
         </div>
-
-        <!-- Section menu -->
-        <div class="menu" id="menu-section">
-          <button class="btn menu-btn">✂ Section ▾</button>
-          <div class="menu-list">
-            <button data-axis="off" class="active">✓ Off</button>
-            <button data-axis="x">Clip X axis</button>
-            <button data-axis="y">Clip Y (horizontal)</button>
-            <button data-axis="z">Clip Z axis</button>
-            <div class="menu-sep"></div>
-            <div class="menu-slider">
-              <label>Position</label>
-              <input type="range" id="clip-range" min="0" max="100" value="50" />
-            </div>
-            <label class="menu-check"><input type="checkbox" id="clip-flip"/> Flip side</label>
-          </div>
-        </div>
-
-        <!-- Selection mode -->
-        <div class="menu" id="menu-select">
-          <button class="btn menu-btn">◉ Select ▾</button>
-          <div class="menu-list">
-            <button data-selmode="element" class="active">✓ Single element</button>
-            <button data-selmode="parent">Parent assembly</button>
-            <button data-selmode="type">All of same type</button>
-            <div class="menu-sep"></div>
-            <label class="menu-check"><input type="checkbox" id="multi-select"/> Multi-select (Ctrl+click)</label>
-          </div>
-        </div>
-
-        <button class="btn" id="btn-grid" title="Toggle grid">▦ Grid</button>
-        <button class="btn" id="btn-wire" title="Toggle wireframe">▧ Wire</button>
-        <button class="btn" id="btn-iso"  title="Isolate selection">🔍 Isolate</button>
-        <button class="btn" id="btn-show" title="Show all">👁 Show all</button>
-        <button class="btn" id="btn-walk" title="Walk / fly mode (WASD + mouse, Esc to exit)">🚶 Walk</button>
       </div>
+    </div>
 
-      <div class="search">
-        <select id="search-class" title="Filter by IFC class">
-          <option value="">All classes</option>
-        </select>
-        <input id="search-box" type="text" placeholder="Search name / IFC class…" />
-        <button class="btn" id="search-clear" title="Clear search">✕</button>
+    <div class="menu" id="menu-select">
+      <button class="btn menu-btn">◉ Select ▾</button>
+      <div class="menu-list">
+        <button data-selmode="element" class="active">✓ Single part</button>
+        <button data-selmode="parent">Whole assembly</button>
+        <button data-selmode="type">All of same type</button>
+        <div class="menu-sep"></div>
+        <label class="menu-check"><input type="checkbox" id="multi-select" /> Multi-select (Ctrl+click)</label>
+        <div class="menu-sep"></div>
+        <button id="btn-isolate">👁 Isolate selection</button>
+        <button id="btn-showall">Show all</button>
       </div>
-    </header>
+    </div>
 
-    <main id="main">
-      <aside id="tree-panel" class="panel">
-        <div class="panel-head">Spatial Structure</div>
-        <div id="tree" class="panel-body">
-          <p class="hint">Open an IFC model to explore its building hierarchy.</p>
-        </div>
-      </aside>
-
-      <section id="viewport">
-        <div id="drop-zone">
-          <div class="drop-inner">
-            <div class="drop-icon">⬆</div>
-            <h2>Drag &amp; drop an <b>.ifc</b> file here</h2>
-            <p>or click “Open IFC”. Everything runs locally in your browser — no upload.</p>
-          </div>
-        </div>
-        <div id="loader" hidden><div class="spinner"></div><span id="loader-text">Loading model…</span></div>
-        <div id="walk-hint" hidden>Walk mode — <b>W A S D</b> move, mouse look, <b>Q/E</b> down/up, <b>Esc</b> to exit</div>
-        <canvas id="three-canvas"></canvas>
-      </section>
-
-      <aside id="props-panel" class="panel">
-        <div class="panel-head">Properties</div>
-        <div id="props" class="panel-body">
-          <p class="hint">Click an element in the model to inspect its properties and property sets.</p>
-        </div>
-      </aside>
-    </main>
-
-    <footer id="statusbar">
-      <span id="status">Ready.</span>
-      <span id="stats"></span>
-    </footer>
+    <button class="btn" id="btn-walk" title="First-person walk-through">🚶 Walk</button>
+    <button class="btn" id="btn-fit" title="Fit model in view (F)">⤢ Fit</button>
+    <input id="search" type="search" placeholder="Search name / ID / type…" />
   </div>
+</header>
 
-  <script type="module" src="app.js"></script>
+<main>
+  <aside id="side">
+    <div class="tabs">
+      <button data-tab="tree" class="tab active">Model</button>
+      <button data-tab="props" class="tab">Properties</button>
+    </div>
+    <div class="pane" id="pane-tree"><div class="tree" id="tree">No model loaded.</div></div>
+    <div class="pane" id="pane-props" hidden><div class="props" id="props">Nothing selected.</div></div>
+  </aside>
+
+  <div id="viewport">
+    <canvas id="c"></canvas>
+
+    <div id="start" class="overlay-card">
+      <h1>Visualise and explore 3D models</h1>
+      <p>Drop a file here, or open one. Supported formats:</p>
+      <div class="chips" id="chips"></div>
+      <p class="hint">Everything runs in your browser — files are never uploaded.</p>
+    </div>
+
+    <div id="drop" class="drop-hint" hidden><div>Drop to open</div></div>
+    <div id="loader" class="loading" hidden><span class="spinner"></span><span id="loader-msg">Loading…</span></div>
+    <div id="toast" class="toast" hidden></div>
+    <div id="badge" class="badge" hidden></div>
+  </div>
+</main>
+
+<footer id="statusbar">
+  <span id="status">Ready — open or drop a model to begin.</span>
+  <span id="tris"></span>
+</footer>
+
+<input id="file-input" type="file" multiple hidden />
+
+<script type="module" src="app.js"></script>
 </body>
 </html>

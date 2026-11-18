@@ -1,104 +1,129 @@
-# Web BIM — IFC Viewer
+# 3D Model Viewer
 
-A lightweight, **100% client-side** BIM viewer for `.ifc` (Industry Foundation
-Classes) files. Everything runs in the browser — your model is **never uploaded**
-to any server. Built on [Three.js](https://threejs.org/) + the
-[web-ifc](https://github.com/ThatOpen/engine_web-ifc) WASM parser (via the
-`IFCLoader` in the Three.js examples).
+A browser-based viewer for the most common CAD / BIM / mesh formats.
+Everything runs client-side — files are read in the browser and never uploaded.
+
+Built with three.js r149, web-ifc (IFC), OpenCascade via `occt-import-js`
+(STEP / IGES / BREP), and `rhino3dm` (3DM).
+
+---
+
+## Supported formats
+
+| Extension | Format | Engine |
+|---|---|---|
+| `.ifc` | International Foundation Class | web-ifc |
+| `.glb` / `.gltf` | glTF / GL Transmission Format (incl. Draco) | GLTFLoader |
+| `.obj` | Wavefront OBJ | OBJLoader |
+| `.stl` | Stereolithography | STLLoader |
+| `.ply` | Polygon File Format | PLYLoader |
+| `.fbx` | Autodesk FBX | FBXLoader |
+| `.dae` | Collada | ColladaLoader |
+| `.3ds` | Autodesk 3D Studio | TDSLoader |
+| `.3mf` | 3D Manufacturing Format | 3MFLoader |
+| `.amf` | Additive Manufacturing Format | AMFLoader |
+| `.wrl` | VRML | VRMLLoader |
+| `.off` | Object File Format | built-in parser |
+| `.bim` | dotbim (JSON) | built-in parser |
+| `.step` / `.stp` | STEP (ISO 10303) | OpenCascade (WASM) |
+| `.iges` / `.igs` | IGES | OpenCascade (WASM) |
+| `.brep` / `.brp` | OpenCascade B-rep | OpenCascade (WASM) |
+| `.fcstd` | FreeCAD document (embedded BREP) | ZIP + OpenCascade |
+| `.3dm` | Rhino | rhino3dm (WASM) |
+
+Notes on the “engine” column:
+
+- **web-ifc / OpenCascade / rhino3dm** are downloaded from a CDN the first time
+you open a file of that type. After that the browser caches them.
+- STEP/IGES/BREP files are tessellated by OpenCascade in the browser; very large
+assemblies can take a while and need a desktop-class amount of memory.
+- `.fcstd` is a ZIP archive: the viewer extracts the largest `.brp` shape inside
+it. Objects, colours and the FreeCAD feature tree are **not** reproduced.
+- `.3dm` covers mesh/polysurface/Brep geometry; Rhino-specific render materials,
+materials and block instances may come through simplified or missing.
+- `.obj` without a `.mtl` file loads geometry only (default grey appearance).
+
+---
 
 ## Features
 
-- Open an IFC model from the file picker **or drag & drop** it onto the viewport.
-- **Open from a cloud URL** — load an `.ifc` straight from a public bucket,
-  signed URL, or raw GitHub link (the host must allow CORS — see note below).
-- **Shareable view link** — copy a link that re-opens the same cloud model at
-  your current camera position/view (`#ifc=…&cam=…`). Local files can't be
-  shared because the recipient's browser has no access to them.
-- **High-quality rendering** — anti-aliasing (SMAA), ACES filmic tone mapping,
-  sRGB output, image-based lighting (PMREM room environment) plus a key light
-  with soft shadows and a hemisphere fill, so models look smooth and shaded
-  rather than flat/jagged.
-- Orbit / pan / zoom 3D navigation.
-- **Views menu** — Isometric / Top / Bottom / Front / Back / Left / Right presets
-  and a **Perspective ↔ Orthographic** projection toggle.
-- **Storey / level selector** — isolate any building storey instantly.
-- **Spatial structure tree** (Project → Site → Building → Storey → Elements).
-- **Click to select** any element; hover to pre-highlight.
-- **Selection modes** — single element, parent assembly, or all of the same IFC
-  type; plus **multi-select** (Ctrl/Cmd+click) to inspect several elements.
-- **Search & filter** — find elements by name, express ID, or IFC class
-  (`IfcWall`, `IfcPipeFitting`, …) and isolate the matches.
-- **Properties panel** — attributes, property sets (Psets) and quantities (Qto).
-- **Section tool** — clipping planes on the X, Y or Z axis with a position slider
-  and flip-side toggle.
-- **Walk / fly mode** — first-person navigation (WASD + mouse look, Q/E up/down,
-  Esc to exit). (No collision detection — you can pass through geometry.)
-- Toolbar: Fit view, toggle grid, wireframe, isolate selection, show all.
-- Keyboard: `F` = fit view, `Esc` = clear selection.
-- Responsive dark UI.
+- Open from disk, **drag & drop**, or a **web link** (`Open URL`).
+- Model tree on the left + **Properties** tab (IFC attributes, property sets and
+  quantities; for other formats: name, type, vertex/triangle counts, size).
+- **Selection**: click a part; Ctrl/Cmd/Shift-click adds; modes for single part,
+  whole assembly, or everything of the same type.
+- **Isolate** selection, **Search** by name / ID / IFC class, **Show all**.
+- **Views** menu: iso / top / bottom / front / back / left / right, and a
+  perspective ↔ orthographic switch.
+- **Section** menu: clip on X, Y or Z with a position slider and flip-side
+  toggle, or a **box clip** with six min/max sliders that crops the model to a
+  rectangular region (Reset restores everything).
+- **Walk mode**: first-person WASD + mouse look, Q/E up-down, Shift to run.
+- **Share** a link: `#model=<url>&cam=<camera>` reopens the same cloud model at
+  the same view.
+- Rendering: SMAA anti-aliasing, ACES tone mapping, sRGB output, image-based
+  lighting, a shadow-casting key light and soft shadows.
 
-## Run it
+---
 
-Because the app loads ES modules and a WASM parser, it must be served over
-`http://` (not opened as a `file://` path). Any static server works:
+## Running it
+
+A static web server is needed (ES modules do not work from `file://`):
 
 ```bash
-# Python 3
-cd ifc-viewer
-python -m http.server 8080
+cd viewer
+python3 -m http.server 8080
 # then open http://localhost:8080
 ```
 
-```bash
-# Node (if you have it)
-npx serve ifc-viewer
-```
+or use the VS Code “Live Server” extension, or push the folder to any static host.
 
-Then browse to the printed URL and open an `.ifc` file.
+---
 
-## Deploy
+## Deploying to GitHub Pages
 
-It's a static site — push the `ifc-viewer/` folder to any static host
-(GitHub Pages, Netlify, Vercel, S3, etc.). No build step required.
+1. Create a repository and copy `index.html`, `styles.css`, `app.js` to its root.
+2. **Settings → Pages → Branch: `main` / folder `/ (root)` → Save**.
+3. Open `https://<user>.github.io/<repo>/`.
 
-### GitHub Pages quick start
-```bash
-cd ifc-viewer
-git init && git add . && git commit -m "Web BIM IFC viewer"
-# create a repo on GitHub, then:
-git branch -M main
-git remote add origin https://github.com/<you>/<repo>.git
-git push -u origin main
-# In the repo: Settings → Pages → Deploy from branch → main / root
-```
+No build step, no dependencies to install — everything is loaded from CDNs.
 
-## Notes & limits
+---
 
-- CDN-pinned version: `three@0.149.0`. The `web-ifc.wasm` parser is loaded from
-  that same Three.js release's `examples/jsm/loaders/ifc/` folder, so the WASM
-  binary always matches the IFC glue code (this avoids the
-  `WebAssembly.instantiate ... requires a callable` LinkError). If you bump
-  Three.js, update **both** the import-map version and the `setWasmPath(...)`
-  version in `app.js` so they stay identical.
-- For fully offline use, download `three`, the example modules and the
-  `web-ifc` `.wasm`/`.js` into the folder and update the import map + wasm path
-  to local paths.
-- Very large IFC files are parsed in a single thread; expect a short wait on
-  first load. Triangle count is shown in the status bar.
-- **Opening a model from a URL / sharing a link needs CORS.** The browser can
-  only fetch a remote `.ifc` if the host returns
-  `Access-Control-Allow-Origin`. Use a direct/raw file link (not an HTML
-  “preview” page). Public buckets (S3/GCS with CORS enabled), signed URLs, or
-  `raw.githubusercontent.com` work; Google Drive / Dropbox “share” pages do
-  not unless you use their direct-download form. Shared links only work for
-  cloud-hosted models — a local file picked from disk cannot be shared.
+## Links and CORS
+
+`Open URL` and `Share` retrieve the model with `fetch`, so the host must send
+`Access-Control-Allow-Origin`. That works for:
+
+- public S3 / GCS / Azure buckets with CORS enabled,
+- signed URLs,
+- `raw.githubusercontent.com/...` links,
+- any server that sets the header.
+
+It does **not** work for Google Drive / Dropbox / OneDrive *preview* pages — use
+their direct-download form instead. A model opened from your own disk cannot be
+shared by link, because the recipient's browser has no access to that file.
+
+---
+
+## Known limits
+
+- Section clipping is axis-aligned (single plane or AABB box); no rotated clip
+  planes yet.
+- Walk mode has no collision detection — you can pass through walls.
+- IFC: property sets/quantities only; the model tree is the spatial structure.
+- Very large models are parsed on the main thread; the tab freezes briefly.
+- Formats not listed above (e.g. `.skp`, `.dwg`, `.dgn`, `.rvt`) cannot be read
+  in the browser — export them to IFC / glTF / STEP first.
+
+---
 
 ## Files
 
 ```
-ifc-viewer/
-├─ index.html    # layout + import map
-├─ styles.css    # dark UI theme
-├─ app.js        # viewer logic (loader, selection, tree, properties, tools)
+viewer/
+├─ index.html   # layout, import map, menus
+├─ styles.css   # dark UI
+├─ app.js       # renderer, format loaders, tree, selection, section, share
 └─ README.md
 ```
