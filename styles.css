@@ -214,3 +214,43 @@ main{display:grid; grid-template-columns:280px 1fr; min-height:0}
   color:#7c8899; font-size:13px; text-align:center; pointer-events:none; user-select:none;
 }
 #empty-hint b{color:#a8b6c8; font-weight:600}
+
+/* ---------- display style menu extras ---------- */
+.sw-row{display:flex; gap:6px}
+.sw{width:20px; height:20px; border-radius:5px; cursor:pointer; border:1px solid #3a4655}
+.sw[data-bg="dark"]{background:#0b0f14}
+.sw[data-bg="grey"]{background:#2a313a}
+.sw[data-bg="white"]{background:#f2f5f9}
+.sw.on{box-shadow:0 0 0 2px var(--accent)}
+
+/* ---------- view cube ---------- */
+#viewcube{
+  position:absolute; right:14px; top:12px; width:116px; height:116px; z-index:12;
+  user-select:none; cursor:grab;
+}
+#viewcube.dragging{cursor:grabbing}
+.vc-stage{position:absolute; inset:18px; perspective:320px; pointer-events:none}
+.vc-cube{position:absolute; inset:0; transform-style:preserve-3d; pointer-events:auto}
+.vc-face{
+  position:absolute; left:50%; top:50%; width:58px; height:58px; margin:-29px 0 0 -29px;
+  display:grid; place-items:center; font-size:9.5px; font-weight:600; letter-spacing:.6px;
+  color:#cfe0f3; background:rgba(28,36,47,.88); border:1px solid #3d4a5b; border-radius:5px;
+  backface-visibility:hidden; cursor:pointer;
+}
+.vc-face:hover{background:rgba(59,142,243,.62); color:#fff; border-color:var(--accent)}
+.vc-front{transform:translateZ(29px)}
+.vc-back{transform:rotateY(180deg) translateZ(29px)}
+.vc-right{transform:rotateY(-90deg) translateZ(29px)}
+.vc-left{transform:rotateY(90deg) translateZ(29px)}
+.vc-top{transform:rotateX(90deg) translateZ(29px)}
+.vc-bottom{transform:rotateX(-90deg) translateZ(29px)}
+.vc-arrow{
+  position:absolute; width:18px; height:18px; display:grid; place-items:center; padding:0;
+  font-size:9px; line-height:1; cursor:pointer; color:#9fb0c4;
+  background:rgba(24,31,40,.9); border:1px solid #33404f; border-radius:50%; z-index:2;
+}
+.vc-arrow:hover{color:#fff; border-color:var(--accent)}
+.vc-a-up{left:49px; top:0}
+.vc-a-down{left:49px; bottom:0}
+.vc-a-left{left:0; top:49px}
+.vc-a-right{right:0; top:49px}

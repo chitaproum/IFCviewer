@@ -69,6 +69,24 @@ materials and block instances may come through simplified or missing.
 - **Isolate** selection, **Search** by name / ID / IFC class, **Show all**.
 - **Views** menu: iso / top / bottom / front / back / left / right, and a
   perspective ↔ orthographic switch.
+- **Orientation cube** (top-right of the viewport): it follows the camera as you
+  rotate. Drag it to orbit, click a face (FRONT / BACK / LEFT / RIGHT / TOP /
+  BOTTOM) to jump to that view, or use the four ring arrows to spin the view in
+  90° steps.
+- **Display** menu (graphic display styles, as in Revit):
+
+  | Style | What it does |
+  |---|---|
+  | Wireframe | edges only, no surfaces |
+  | Hidden Line | flat surfaces with the visible edges drawn on top |
+  | Shaded | surfaces with lighting and shadows, textures off (default) |
+  | Consistent Colors | every part keeps its own colour but is drawn flat, without lighting or textures |
+  | Textures | original materials with their texture maps |
+  | Realistic | textures, image-based lighting, sharper shadows and a slight sheen |
+
+  **Graphic Display Options…** (inside the Display menu): background swatches
+  (dark / grey / white) and a **Show edges** toggle that overlays the part
+  boundaries on any style.
 - **Section** menu: clip on X, Y or Z with a position slider and flip-side
   toggle, or a **box clip** with six min/max sliders that crops the model to a
   rectangular region (Reset restores everything).
@@ -79,6 +97,8 @@ materials and block instances may come through simplified or missing.
   the same view.
 - Rendering: SMAA anti-aliasing, ACES tone mapping, sRGB output, image-based
   lighting, a shadow-casting key light and soft shadows.
+- Display styles are non-destructive: switching back to Shaded / Textures /
+  Realistic restores the original materials, colours and texture maps.
 
 ---
 
@@ -129,6 +149,11 @@ shared by link, because the recipient's browser has no access to that file.
 - Walk mode has no collision detection — you can pass through walls.
 - IFC: property sets/quantities only; the model tree is the spatial structure.
 - Very large models are parsed on the main thread; the tab freezes briefly.
+- Hidden Line draws an edge overlay computed from the mesh; very large models
+  are capped (about 800 parts) so the browser stays responsive, and curved
+  surfaces show tessellation edges rather than smooth silhouette curves.
+- Textures / Realistic can only show what the file contains: models exported
+  without texture maps or UVs stay flat-coloured.
 - Formats not listed above (e.g. `.skp`, `.dwg`, `.dgn`, `.rvt`) cannot be read
   in the browser — export them to IFC / glTF / STEP first.
 

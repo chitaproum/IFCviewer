@@ -44,6 +44,31 @@
       </div>
     </div>
 
+    <div class="menu" id="menu-display">
+      <button class="btn menu-btn" title="How the model is drawn">🎨 Display ▾</button>
+      <div class="menu-list">
+        <button id="gdo-open">🖼 Graphic Display Options…</button>
+        <div class="menu-sep"></div>
+        <button data-style="wireframe">Wireframe</button>
+        <button data-style="hidden">Hidden Line</button>
+        <button data-style="shaded" class="active">✓ Shaded</button>
+        <button data-style="consistent">Consistent Colors</button>
+        <button data-style="textures">Textures</button>
+        <button data-style="realistic">Realistic</button>
+        <div class="menu-sep"></div>
+        <div id="gdo-panel" hidden>
+          <div class="menu-slider"><label>Background</label>
+            <span class="sw-row">
+              <button class="sw" data-bg="dark" title="Dark"></button>
+              <button class="sw" data-bg="grey" title="Grey"></button>
+              <button class="sw" data-bg="white" title="White"></button>
+            </span>
+          </div>
+          <label class="menu-check"><input type="checkbox" id="toggle-edges" /> Show edges</label>
+        </div>
+      </div>
+    </div>
+
     <div class="menu" id="menu-views">
       <button class="btn menu-btn">🧭 Views ▾</button>
       <div class="menu-list">
@@ -136,6 +161,23 @@
     <div id="loader" class="loading" hidden><span class="spinner"></span><span id="loader-msg">Loading…</span></div>
     <div id="toast" class="toast" hidden></div>
     <div id="badge" class="badge" hidden></div>
+
+    <div id="viewcube" title="Drag to orbit — click a face">
+      <div class="vc-stage">
+        <div class="vc-cube" id="vc-cube">
+          <div class="vc-face vc-front" data-view="front">FRONT</div>
+          <div class="vc-face vc-back" data-view="back">BACK</div>
+          <div class="vc-face vc-right" data-view="right">RIGHT</div>
+          <div class="vc-face vc-left" data-view="left">LEFT</div>
+          <div class="vc-face vc-top" data-view="top">TOP</div>
+          <div class="vc-face vc-bottom" data-view="bottom">BOTTOM</div>
+        </div>
+      </div>
+      <button class="vc-arrow vc-a-up" data-spin="up" title="Rotate up">▲</button>
+      <button class="vc-arrow vc-a-down" data-spin="down" title="Rotate down">▼</button>
+      <button class="vc-arrow vc-a-left" data-spin="left" title="Rotate left">◀</button>
+      <button class="vc-arrow vc-a-right" data-spin="right" title="Rotate right">▶</button>
+    </div>
 
     <div class="navrail">
       <button class="navbtn on" data-move="orbit" title="Orbit — drag to rotate (1)">⟳</button>

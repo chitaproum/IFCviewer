@@ -90,11 +90,13 @@ fill.position.set(-25, 18, -18);
 scene.add(fill);
 
 /* image-based lighting: makes PBR materials look right instead of flat */
+let envTexture = null;
 {
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();
   const env = pmrem.fromScene(new RoomEnvironment(), 0.04);
-  scene.environment = env.texture;
+  envTexture = env.texture;
+  scene.environment = envTexture;
 }
 
 /* ------------------------------------------------------- helpers + ground */
@@ -435,6 +437,210 @@ function setShadowsOn(on) {
 }
 
 /* ==========================================================================
+   Display styles (Graphic Display Options)
+   ========================================================================== */
+let displayStyle = 'shaded';
+const styleOrigMats = new Map();   // mesh uuid -> material(s) before an override
+const mapCache = new Map();        // material uuid -> texture temporarily removed
+const edgeCache = new Map();       // mesh uuid -> edge overlay
+let edgesOn = false;
+let edgeBudget = 0;
+
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x0f151c, transparent: true, opacity: 0.55 });
+const wireMat = new THREE.MeshBasicMaterial({ color: 0x9fb4cc, wireframe: true });
+const flatMat = new THREE.MeshBasicMaterial({ color: 0xe9eef5 });                       // hidden line
+
+const STYLE_LABELS = {
+  wireframe: 'Wireframe', hidden: 'Hidden Line', shaded: 'Shaded',
+  consistent: 'Consistent Colors', textures: 'Textures', realistic: 'Realistic'
+};
+
+function eachMesh(cb) {
+  if (!state.root) return;
+  state.root.traverse((o) => { if (o.isMesh && !o.userData.isEdge) cb(o); });
+}
+
+function setOverride(mat) {
+  eachMesh((o) => {
+    if (!styleOrigMats.has(o.uuid)) {
+      styleOrigMats.set(o.uuid, { obj: o, mats: Array.isArray(o.material) ? o.material.slice() : [o.material] });
+    }
+    o.material = mat;
+  });
+}
+
+function consistentFor(o) {
+  if (o.userData.consistentMat) return o.userData.consistentMat;
+  const rec = styleOrigMats.get(o.uuid);
+  const src = rec ? rec.mats[0] : (Array.isArray(o.material) ? o.material[0] : o.material);
+  const col = src && src.color ? src.color.clone() : new THREE.Color(0x9fb0c4);
+  const m = new THREE.MeshBasicMaterial({ color: col, side: src && src.side !== undefined ? src.side : THREE.FrontSide });
+  o.userData.consistentMat = m;
+  return m;
+}
+
+function setConsistentOverride() {
+  eachMesh((o) => {
+    if (!styleOrigMats.has(o.uuid)) {
+      styleOrigMats.set(o.uuid, { obj: o, mats: Array.isArray(o.material) ? o.material.slice() : [o.material] });
+    }
+    o.material = consistentFor(o);
+  });
+}
+
+function clearOverride() {
+  styleOrigMats.forEach((rec) => {
+    if (rec && rec.obj) rec.obj.material = rec.mats.length === 1 ? rec.mats[0] : rec.mats;
+  });
+  styleOrigMats.clear();
+}
+
+function setMaps(on) {
+  eachMesh((o) => {
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach((m) => {
+      if (!m) return;
+      if (!on) {
+        if (m.map) { mapCache.set(m.uuid, m.map); m.map = null; m.needsUpdate = true; }
+      } else if (mapCache.has(m.uuid)) {
+        const map = mapCache.get(m.uuid);
+        mapCache.delete(m.uuid);
+        if (map) { m.map = map; m.needsUpdate = true; }
+      }
+    });
+  });
+}
+
+function ensureEdges(o) {
+  if (edgeCache.has(o.uuid)) return edgeCache.get(o.uuid);
+  if (edgeBudget >= 800) return null;
+  const g = o.geometry;
+  if (!g || !g.attributes || !g.attributes.position) return null;
+  const tris = g.index ? g.index.count / 3 : g.attributes.position.count / 3;
+  if (tris > 40000) return null;
+  let eg = null;
+  try { eg = new THREE.EdgesGeometry(g, 26); } catch (e) { return null; }
+  if (!eg.attributes.position || eg.attributes.position.count < 2) { eg.dispose(); return null; }
+  const line = new THREE.LineSegments(eg, edgeMat);
+  line.raycast = () => {};
+  line.userData.isEdge = true;
+  line.visible = false;
+  line.renderOrder = 2;
+  o.add(line);
+  edgeCache.set(o.uuid, line);
+  edgeBudget++;
+  return line;
+}
+
+function updateEdges() {
+  const show = edgesOn || displayStyle === 'hidden';
+  eachMesh((o) => {
+    if (!show) {
+      const ex = edgeCache.get(o.uuid);
+      if (ex) ex.visible = false;
+      return;
+    }
+    const line = ensureEdges(o);
+    if (line) line.visible = true;
+  });
+}
+
+function applyDisplayStyle(style, quiet) {
+  displayStyle = style;
+  const override = style === 'wireframe' ? wireMat : style === 'hidden' ? flatMat : null;
+
+  if (style === 'consistent') setConsistentOverride();
+  else if (override) setOverride(override);
+  else clearOverride();
+
+  if (style === 'shaded') setMaps(false);
+  else if (style === 'textures' || style === 'realistic') setMaps(true);
+
+  const wantShadows = style === 'realistic' || style === 'shaded';
+  const userShadows = $('toggle-shadow') ? $('toggle-shadow').checked : true;
+  const shadows = wantShadows && userShadows;
+  renderer.shadowMap.enabled = shadows;
+  renderer.shadowMap.needsUpdate = true;
+  dir.castShadow = shadows;
+  scene.environment = (override || style === 'consistent') ? null : envTexture;
+
+  eachMesh((o) => {
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach((m) => { if (m) m.needsUpdate = true; });
+  });
+
+  updateEdges();
+
+  document.querySelectorAll('#menu-display [data-style]').forEach((b) => {
+    const on = b.dataset.style === style;
+    b.classList.toggle('active', on);
+    b.textContent = (on ? '✓ ' : '') + b.textContent.replace(/^✓ /, '');
+  });
+  if (!quiet) setStatus('Display style: ' + (STYLE_LABELS[style] || style));
+}
+
+/* light / dark background (Graphic Display Options) */
+const BACKGROUNDS = { dark: 0x0b0f14, grey: 0x2a313a, white: 0xf2f5f9 };
+function setBackground(key) {
+  const col = BACKGROUNDS[key];
+  if (col === undefined) return;
+  scene.background = new THREE.Color(col);
+  edgeMat.color.set(col === BACKGROUNDS.white ? 0x2b3441 : 0x0f151c);
+  document.querySelectorAll('#menu-display .sw').forEach((b) => b.classList.toggle('on', b.dataset.bg === key));
+  setStatus('Background: ' + key);
+}
+
+/* ==========================================================================
+   ViewCube (orientation cube + rotate arrows)
+   ========================================================================== */
+const vcBox = $('viewcube');
+const vcCube = $('vc-cube');
+const vcQuat = new THREE.Quaternion();
+const vcMat4 = new THREE.Matrix4();
+
+function updateViewCube() {
+  if (!vcCube) return;
+  vcQuat.copy(activeCamera.quaternion).invert();
+  vcMat4.makeRotationFromQuaternion(vcQuat);
+  const e = vcMat4.elements;
+  // rows of the transposed camera rotation (column-major source), CSS matrix3d is column-major too
+  const m = [e[0], e[4], e[8], 0, e[1], e[5], e[9], 0, e[2], e[6], e[10], 0, 0, 0, 0, 1]
+    .map((v) => (Math.abs(v) < 1e-6 ? 0 : +v.toFixed(4)));
+  vcCube.style.transform = 'matrix3d(' + m.join(',') + ')';
+}
+
+function orbitByPixels(dx, dy) {
+  if (!state.root) return;
+  const offset = activeCamera.position.clone().sub(orbit.target);
+  const sph = new THREE.Spherical().setFromVector3(offset);
+  sph.theta -= dx * 0.012;
+  sph.phi -= dy * 0.012;
+  sph.phi = Math.max(0.08, Math.min(Math.PI - 0.08, sph.phi));
+  offset.setFromSpherical(sph);
+  activeCamera.position.copy(orbit.target).add(offset);
+  activeCamera.up.set(0, 1, 0);
+  activeCamera.lookAt(orbit.target);
+  orbit.update();
+}
+
+function spinView(dirName) {
+  if (!state.root) { setStatus('Open a model first.'); return; }
+  const offset = activeCamera.position.clone().sub(orbit.target);
+  const sph = new THREE.Spherical().setFromVector3(offset);
+  if (dirName === 'left') sph.theta -= Math.PI / 2;
+  if (dirName === 'right') sph.theta += Math.PI / 2;
+  if (dirName === 'up') sph.phi = Math.max(0.08, sph.phi - Math.PI / 4);
+  if (dirName === 'down') sph.phi = Math.min(Math.PI - 0.08, sph.phi + Math.PI / 4);
+  offset.setFromSpherical(sph);
+  activeCamera.position.copy(orbit.target).add(offset);
+  activeCamera.up.set(0, 1, 0);
+  activeCamera.lookAt(orbit.target);
+  orbit.update();
+}
+
+let vcDrag = null;
+
+/* ==========================================================================
    Materials: make every loader's output look consistent (PBR + shadows)
    ========================================================================== */
 function toStandardMaterial(m, geo) {
@@ -498,6 +704,10 @@ function disposeRoot() {
   state.isolateKey = null;
   state.hiddenByIso = [];
   state.ghosted = [];
+  styleOrigMats.clear();
+  mapCache.clear();
+  edgeCache.clear();
+  edgeBudget = 0;
   $('tree').innerHTML = '';
   $('props').innerHTML = '<div class="empty">Nothing selected.</div>';
   state.triCount = 0;
@@ -867,6 +1077,7 @@ async function loadBuffer(buf, name, url) {
 
   // restore a shared camera view if the link carried one
   if (pendingCam) { applyCameraState(pendingCam); pendingCam = null; }
+  applyDisplayStyle(displayStyle, true);
   if (clipMode !== 'off') applyClip();
 }
 
@@ -1775,10 +1986,59 @@ $('grid-extent').addEventListener('change', (e) => {
   setStatus('Grid extent = ' + gridExtent + ' model units.');
 });
 
+// display styles + graphic display options
+setBackground('dark');
+document.querySelectorAll('#menu-display [data-style]').forEach((b) => {
+  b.addEventListener('click', () => { applyDisplayStyle(b.dataset.style); closeMenus(null); });
+});
+$('gdo-open').addEventListener('click', () => { const p = $('gdo-panel'); p.hidden = !p.hidden; });
+document.querySelectorAll('#menu-display .sw').forEach((b) => {
+  b.addEventListener('click', () => setBackground(b.dataset.bg));
+});
+$('toggle-edges').addEventListener('change', (e) => { edgesOn = e.target.checked; updateEdges(); });
+
+// view cube
+if (vcBox) {
+  vcBox.addEventListener('pointerdown', (e) => {
+    if (e.target.classList.contains('vc-arrow')) return;
+    vcDrag = { x: e.clientX, y: e.clientY, moved: 0 };
+    vcBox.classList.add('dragging');
+    try { vcBox.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+  });
+  vcBox.addEventListener('pointermove', (e) => {
+    if (!vcDrag) return;
+    const dx = e.clientX - vcDrag.x, dy = e.clientY - vcDrag.y;
+    vcDrag.x = e.clientX; vcDrag.y = e.clientY;
+    vcDrag.moved += Math.abs(dx) + Math.abs(dy);
+    orbitByPixels(dx, dy);
+  });
+  const endDrag = (e) => {
+    const d = vcDrag;
+    vcDrag = null;
+    vcBox.classList.remove('dragging');
+    if (!d || d.moved > 6) return;
+    const face = e.target.closest ? e.target.closest('.vc-face') : null;
+    if (face && face.dataset.view) {
+      setView(face.dataset.view);
+      const btn = document.querySelector('#menu-views [data-view="' + face.dataset.view + '"]');
+      if (btn) markActive('#menu-views [data-view]', btn);
+      setStatus('View: ' + face.textContent.trim());
+    }
+  };
+  vcBox.addEventListener('pointerup', endDrag);
+  vcBox.addEventListener('pointercancel', () => { vcDrag = null; vcBox.classList.remove('dragging'); });
+  document.querySelectorAll('.vc-arrow').forEach((b) => {
+    b.addEventListener('click', (e) => { e.stopPropagation(); spinView(b.dataset.spin); });
+  });
+}
+
 // formats card (hidden by default, opened from the toolbar)
 $('btn-formats').addEventListener('click', () => { $('start').hidden = !$('start').hidden; });
 $('start-close').addEventListener('click', () => { $('start').hidden = true; });
-$('toggle-shadow').addEventListener('change', (e) => { setShadowsOn(e.target.checked); });
+$('toggle-shadow').addEventListener('change', (e) => {
+  setShadowsOn(e.target.checked);
+  renderer.shadowMap.needsUpdate = true;
+});
 $('toggle-rot').addEventListener('change', (e) => {
   orbit.autoRotate = e.target.checked;
   orbit.autoRotateSpeed = 0.9;
@@ -1878,6 +2138,7 @@ function animate() {
   const dt = Math.min(clock.getDelta(), 0.1);
   if (walk.active) updateWalk(dt);
   else orbit.update();
+  updateViewCube();
   renderPass.camera = activeCamera;
   composer.render();
 }
