@@ -8,7 +8,7 @@ html,body{height:100%}
 body{
   margin:0; background:var(--bg); color:var(--txt); overflow:hidden;
   font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  display:grid; grid-template-rows:auto 1fr auto; height:100vh;
+  display:grid; grid-template-rows:auto 1fr; height:100vh;
 }
 
 /* ---------- top bar ---------- */
@@ -41,7 +41,7 @@ body{
 /* ---------- menus ---------- */
 .menu{position:relative}
 .menu-list{
-  position:absolute; right:0; top:calc(100% + 6px); min-width:210px; padding:6px;
+  position:absolute; right:0; top:calc(100% + 6px); min-width:236px; padding:6px;
   background:#1b222c; border:1px solid #2c3644; border-radius:10px;
   box-shadow:0 12px 34px rgba(0,0,0,.5); display:none; z-index:40;
 }
@@ -147,12 +147,44 @@ main{display:grid; grid-template-columns:280px 1fr; min-height:0}
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ---------- status ---------- */
-#statusbar{
-  display:flex; justify-content:space-between; gap:12px; padding:5px 12px;
-  background:#121820; border-top:1px solid var(--line); color:var(--muted); font-size:11.5px;
+/* ---------- status pill (auto-hides, replaces the old bottom bar) ---------- */
+.status-pill{
+  position:absolute; left:12px; bottom:12px; max-width:min(520px,60%);
+  background:rgba(20,26,34,.86); border:1px solid #2c3644; border-radius:8px;
+  padding:5px 10px; font-size:11.5px; color:#c3cedd; pointer-events:none;
+  backdrop-filter:blur(6px); transition:opacity .35s ease;
 }
-#tris{color:#6f7b89}
+.status-pill.fade{opacity:0}
+.status-pill.err{border-color:#7a3b3b; color:#ffd7d7}
+
+/* ---------- floating navigation rail ---------- */
+.navrail{
+  position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  display:flex; flex-direction:column; gap:4px; padding:6px;
+  background:rgba(20,26,34,.82); border:1px solid #2c3644; border-radius:12px;
+  backdrop-filter:blur(6px); z-index:12;
+}
+.navbtn{
+  width:34px; height:34px; display:grid; place-items:center; cursor:pointer;
+  background:transparent; color:#c3cedd; border:1px solid transparent; border-radius:8px;
+  font-size:15px; line-height:1;
+}
+.navbtn:hover{background:#26313f; color:#fff}
+.navbtn.on{background:#2b3d55; border-color:var(--accent); color:#fff}
+.navsep{height:1px; background:#2b3440; margin:3px 2px}
+
+/* cursor feedback for the active mouse mode */
+#c{ cursor:grab; }
+#c.m-pan{cursor:grab}
+#c.m-zoom{cursor:ns-resize}
+#c.m-orbit{cursor:grab}
+#c.dragging{cursor:grabbing}
+
+.kbd{
+  font:10.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color:#8b97a7;
+  border:1px solid #33404f; border-radius:4px; padding:1px 4px; margin-left:auto;
+}
+.menu-list > button{display:flex; align-items:center; gap:8px}
 
 @media (max-width:900px){
   main{grid-template-columns:1fr}

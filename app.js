@@ -148,7 +148,22 @@ const state = {
 
 /* ------------------------------------------------------------------- UI --- */
 let toastTimer = null;
-function setStatus(t) { $('status').textContent = t; }
+let statusTimer = null;
+function setStatus(t, isError) {
+  const bar = $('statusbar');
+  const el = $('status');
+  if (!el) return;
+  el.textContent = t;
+  if (!bar) return;
+  bar.hidden = false;
+  bar.classList.remove('fade');
+  bar.classList.toggle('err', !!isError);
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => {
+    bar.classList.add('fade');
+    setTimeout(() => { if (bar.classList.contains('fade')) bar.hidden = true; }, 400);
+  }, isError ? 6500 : 3800);
+}
 function toast(msg, ms) {
   const el = $('toast');
   el.textContent = msg;
@@ -266,12 +281,108 @@ function setProjection(mode) {
   orbit = new OrbitControls(activeCamera, canvas);
   orbit.enableDamping = true; orbit.dampingFactor = 0.08; orbit.screenSpacePanning = true;
   orbit.target.copy(tgt);
+  applyMoveMode();
   updateOrthoFrustum();
   orbit.update();
   renderPass.camera = activeCamera;
   document.querySelectorAll('#menu-views .proj').forEach((b) => {
     b.classList.toggle('active', b.dataset.proj === mode);
     b.textContent = (b.dataset.proj === mode ? '✓ ' : '') + (b.dataset.proj === 'ortho' ? 'Orthographic' : 'Perspective');
+  });
+}
+
+/* ==========================================================================
+   Navigation: orbit / pan / zoom mouse modes + quick view helpers
+   ========================================================================== */
+const MOUSE_SETS = {
+  orbit: { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN },
+  pan:   { LEFT: THREE.MOUSE.PAN,    MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE },
+  zoom:  { LEFT: THREE.MOUSE.DOLLY,  MIDDLE: THREE.MOUSE.PAN,   RIGHT: THREE.MOUSE.ROTATE }
+};
+const TOUCH_SETS = {
+  orbit: { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN },
+  pan:   { ONE: THREE.TOUCH.PAN,    TWO: THREE.TOUCH.DOLLY_ROTATE },
+  zoom:  { ONE: THREE.TOUCH.DOLLY_PAN, TWO: THREE.TOUCH.DOLLY_PAN }
+};
+let moveMode = 'orbit';
+
+function applyMoveMode() {
+  if (orbit) {
+    orbit.mouseButtons = Object.assign({}, MOUSE_SETS[moveMode]);
+    orbit.touches = Object.assign({}, TOUCH_SETS[moveMode]);
+  }
+  canvas.classList.remove('m-orbit', 'm-pan', 'm-zoom');
+  canvas.classList.add('m-' + moveMode);
+  const rot = $('toggle-rot');
+  if (rot && orbit) { orbit.autoRotate = rot.checked; orbit.autoRotateSpeed = 0.9; }
+}
+
+function setMoveMode(mode, quiet) {
+  moveMode = mode;
+  applyMoveMode();
+  document.querySelectorAll('#menu-move [data-move]').forEach((b) => {
+    const on = b.dataset.move === mode;
+    b.classList.toggle('active', on);
+    b.textContent = (on ? '\u2713 ' : '') + b.textContent.replace(/^\u2713 /, '');
+  });
+  document.querySelectorAll('.navbtn[data-move]').forEach((b) => b.classList.toggle('on', b.dataset.move === mode));
+  if (!quiet) {
+    setStatus(mode === 'pan' ? 'Pan mode — drag with the left mouse button to slide the view.'
+      : mode === 'zoom' ? 'Zoom mode — drag up / down with the left mouse button.'
+      : 'Orbit mode — drag with the left mouse button to rotate.');
+  }
+}
+
+function selectionBox() {
+  const box = new THREE.Box3();
+  if (state.isIFC && state.ifcLoader && state.modelID != null) {
+    try {
+      const m = state.ifcLoader.ifcManager.getSubset(state.modelID, selMat);
+      if (m) box.expandByObject(m);
+    } catch (e) { /* ignore */ }
+  }
+  state.selection.forEach((n) => { if (n.obj) box.expandByObject(n.obj); });
+  return box;
+}
+
+function frameBox(box) {
+  if (!box || box.isEmpty()) return false;
+  const size = box.getSize(new THREE.Vector3());
+  const c = box.getCenter(new THREE.Vector3());
+  const d = (Math.max(size.x, size.y, size.z) || 1) * 1.9;
+  orbit.target.copy(c);
+  activeCamera.position.copy(c).add(new THREE.Vector3(d * 0.62, d * 0.5, d * 0.62));
+  orbit.update();
+  return true;
+}
+
+function zoomToSelection() {
+  if (!state.selection.size) { setStatus('Select something first, then zoom to it.'); return; }
+  const box = selectionBox();
+  if (!frameBox(box)) { toast('The selection has no visible geometry.'); return; }
+  setStatus('Zoomed to the selected part.');
+}
+
+function homeView() {
+  if (!state.root) { setStatus('Open a model first.'); return; }
+  if (isOrtho) setProjection('persp');
+  activeCamera.up.set(0, 1, 0);
+  fitToModel();
+  setStatus('Home view.');
+}
+
+function setGridVisible(on) {
+  grid.visible = on;
+}
+
+function setShadowsOn(on) {
+  renderer.shadowMap.enabled = on;
+  renderer.shadowMap.needsUpdate = true;
+  dir.castShadow = on;
+  scene.traverse((o) => {
+    if (!o.isMesh || !o.material) return;
+    const ms = Array.isArray(o.material) ? o.material : [o.material];
+    ms.forEach((m) => { if (m) m.needsUpdate = true; });
   });
 }
 
@@ -315,8 +426,8 @@ function polish(root) {
 function disposeRoot() {
   if (!state.root) return;
   if (state.isIFC && state.ifcLoader) {
-    try { state.ifcLoader.ifcManager.removeSubset(state.modelID, scene, 'sel'); } catch (e) {}
-    try { state.ifcLoader.ifcManager.removeSubset(state.modelID, scene, 'iso'); } catch (e) {}
+    try { state.ifcLoader.ifcManager.removeSubset(state.modelID, scene, selMat); } catch (e) {}
+    try { state.ifcLoader.ifcManager.removeSubset(state.modelID, scene); } catch (e) {}
     try { state.ifcLoader.ifcManager.close(state.modelID, scene); } catch (e) {}
   }
   state.root.traverse((o) => {
@@ -341,7 +452,8 @@ function disposeRoot() {
   state.ghosted = [];
   $('tree').innerHTML = '';
   $('props').innerHTML = '<div class="empty">Nothing selected.</div>';
-  $('tris').textContent = '';
+  state.triCount = 0;
+  updateBadge();
 }
 
 /* ==========================================================================
@@ -697,8 +809,8 @@ async function loadBuffer(buf, name, url) {
   updateBadge();
 
   const tri = countTriangles(root);
-  $('tris').textContent = tri.toLocaleString() + ' triangles';
   state.triCount = tri;
+  updateBadge();
 
   hideLoader();
   $('start').hidden = true;
@@ -713,7 +825,9 @@ function updateBadge() {
   const b = $('badge');
   if (!state.root) { b.hidden = true; return; }
   b.hidden = false;
-  b.innerHTML = '<b>' + escapeHtml(state.name) + '</b> · ' + (state.format ? state.format.label : '');
+  let txt = '<b>' + escapeHtml(state.name) + '</b> · ' + (state.format ? state.format.label : '');
+  if (state.triCount) txt += ' · ' + state.triCount.toLocaleString() + ' triangles';
+  b.innerHTML = txt;
 }
 
 /* ==========================================================================
@@ -979,7 +1093,7 @@ function applyHighlight() {
     const ids = [];
     nodes.forEach((n) => (n.ids || []).forEach((i) => ids.push(i)));
     try {
-      if (!ids.length) state.ifcLoader.ifcManager.removeSubset(state.modelID, scene, 'sel');
+      if (!ids.length) state.ifcLoader.ifcManager.removeSubset(state.modelID, scene, selMat);
       else {
         state.ifcLoader.ifcManager.createSubset({
           modelID: state.modelID, ids: ids.filter((v, i, a) => a.indexOf(v) === i),
@@ -1046,7 +1160,7 @@ function clearSelection() {
   state.selection.clear();
   document.querySelectorAll('.node-row.sel').forEach((r) => r.classList.remove('sel'));
   if (state.isIFC) {
-    try { state.ifcLoader.ifcManager.removeSubset(state.modelID, scene, 'sel'); } catch (e) {}
+    try { state.ifcLoader.ifcManager.removeSubset(state.modelID, scene, selMat); } catch (e) {}
   } else {
     clearGenericHighlight();
   }
@@ -1086,7 +1200,7 @@ function isolateSelection() {
 
 function showAll(silent) {
   if (state.isolateKey === 'ifc' && state.ifcLoader) {
-    try { state.ifcLoader.ifcManager.removeSubset(state.modelID, scene, 'iso'); } catch (e) {}
+    try { state.ifcLoader.ifcManager.removeSubset(state.modelID, scene); } catch (e) {}
     if (state.root) state.root.visible = true;
   }
   if (state.hiddenByIso && state.hiddenByIso.length) {
@@ -1415,8 +1529,11 @@ async function openFile(file) {
   } catch (err) {
     hideLoader();
     console.error(err);
-    setStatus('Could not open ' + file.name + ': ' + err.message);
-    toast('Could not open this file — ' + err.message, 5200);
+    setStatus('Could not open ' + file.name + ': ' + err.message, true);
+    const tip = /\.(fbx|dae|3ds)$/i.test(file.name)
+      ? ' Tip: export the model as glTF (.glb) or OBJ from the authoring app — those load most reliably.'
+      : '';
+    toast('Could not open this file — ' + err.message + '.' + tip, 8000);
   }
 }
 
@@ -1439,7 +1556,7 @@ async function openURL(url) {
   } catch (err) {
     hideLoader();
     console.error(err);
-    setStatus('Download failed: ' + err.message);
+    setStatus('Download failed: ' + err.message, true);
     toast('Could not load that link — ' + err.message + ' (the server must allow cross-origin access / CORS)', 7000);
   }
 }
@@ -1572,6 +1689,27 @@ document.querySelectorAll('.menu > .menu-btn').forEach((btn) => {
 document.addEventListener('click', () => closeMenus(null));
 document.querySelectorAll('.menu-list').forEach((l) => l.addEventListener('click', (e) => e.stopPropagation()));
 
+// move / pan / zoom + view helpers
+document.querySelectorAll('#menu-move [data-move]').forEach((b) => {
+  b.addEventListener('click', () => { setMoveMode(b.dataset.move); closeMenus(null); });
+});
+document.querySelectorAll('.navbtn[data-move]').forEach((b) => {
+  b.addEventListener('click', () => setMoveMode(b.dataset.move));
+});
+$('btn-fit-model').addEventListener('click', () => { fitToModel(); closeMenus(null); });
+$('rail-fit').addEventListener('click', () => fitToModel());
+$('btn-home').addEventListener('click', () => { homeView(); closeMenus(null); });
+$('rail-home').addEventListener('click', () => homeView());
+$('btn-zoom-sel').addEventListener('click', () => { zoomToSelection(); closeMenus(null); });
+$('toggle-grid').addEventListener('change', (e) => { setGridVisible(e.target.checked); });
+$('toggle-shadow').addEventListener('change', (e) => { setShadowsOn(e.target.checked); });
+$('toggle-rot').addEventListener('change', (e) => {
+  orbit.autoRotate = e.target.checked;
+  orbit.autoRotateSpeed = 0.9;
+});
+canvas.addEventListener('pointerdown', () => canvas.classList.add('dragging'));
+window.addEventListener('pointerup', () => canvas.classList.remove('dragging'));
+
 // views + projection
 function markActive(sel, el) {
   document.querySelectorAll(sel).forEach((b) => {
@@ -1641,7 +1779,13 @@ document.addEventListener('keydown', (e) => {
   if (walk.active) return;
   const tag = (e.target && e.target.tagName) || '';
   if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-  if (e.key === 'f' || e.key === 'F') { fitToModel(); }
+  const k = e.key.toLowerCase();
+  if (k === 'f') fitToModel();
+  if (k === 'h') homeView();
+  if (k === '1') setMoveMode('orbit');
+  if (k === '2') setMoveMode('pan');
+  if (k === '3') setMoveMode('zoom');
+  if (k === 'z') zoomToSelection();
   if (e.key === 'Escape') { clearSelection(); }
 });
 
@@ -1659,11 +1803,11 @@ function animate() {
 /* ------------------------------------------------------------------- init */
 function init() {
   resize();
+  applyMoveMode();
   renderer.compile(scene, activeCamera);
   animate();
-  const n = Object.keys(FORMATS).length;
-  setStatus('Ready — open, drop or link a model. ' + n + ' file extensions supported.');
-  $('tris').textContent = '';
+  // no permanent bottom bar: messages appear as a small pill and fade away
+  $('statusbar').hidden = true;
 }
 init();
 

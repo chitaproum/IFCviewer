@@ -48,6 +48,15 @@ materials and block instances may come through simplified or missing.
 ## Features
 
 - Open from disk, **drag & drop**, or a **web link** (`Open URL`).
+- **Move** menu (mouse navigation): **Orbit**, **Pan** and **Zoom** modes - the
+  left mouse button changes behaviour per mode, so the view can be slid like a
+  drawing sheet instead of only rotating it. Middle button zooms and the right
+  button pans (or rotates) in every mode.
+  - `1` orbit / `2` pan / `3` zoom / `F` fit / `H` home / `Z` zoom to selection
+  - **Zoom to selection** frames the selected part; **Home view** returns to the
+    isometric view; grid, shadows and auto-rotate can be switched on and off.
+- **Floating navigation rail** (right edge of the viewport) for one-click orbit,
+  pan, zoom, fit and home - no menu needed.
 - Model tree on the left + **Properties** tab (IFC attributes, property sets and
   quantities; for other formats: name, type, vertex/triangle counts, size).
 - **Selection**: click a part; Ctrl/Cmd/Shift-click adds; modes for single part,
@@ -59,6 +68,8 @@ materials and block instances may come through simplified or missing.
   toggle, or a **box clip** with six min/max sliders that crops the model to a
   rectangular region (Reset restores everything).
 - **Walk mode**: first-person WASD + mouse look, Q/E up-down, Shift to run.
+- Status messages appear as a small pill in the lower-left corner and fade away
+  after a few seconds - there is no permanent status bar at the bottom.
 - **Share** a link: `#model=<url>&cam=<camera>` reopens the same cloud model at
   the same view.
 - Rendering: SMAA anti-aliasing, ACES tone mapping, sRGB output, image-based

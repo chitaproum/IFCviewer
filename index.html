@@ -24,6 +24,23 @@
     <button class="btn" id="btn-url" title="Load a model from a web link">🔗 Open URL</button>
     <button class="btn" id="btn-share" title="Copy a link to this model and camera view">📤 Share</button>
 
+    <div class="menu" id="menu-move">
+      <button class="btn menu-btn" title="How the mouse moves the view">🖐 Move ▾</button>
+      <div class="menu-list">
+        <button data-move="orbit" class="active">✓ Orbit — drag to rotate</button>
+        <button data-move="pan">Pan — drag to slide</button>
+        <button data-move="zoom">Zoom — drag up / down</button>
+        <div class="menu-sep"></div>
+        <button id="btn-fit-model">⤢ Fit model <span class="kbd">F</span></button>
+        <button id="btn-zoom-sel">🔎 Zoom to selection</button>
+        <button id="btn-home">⌂ Home view <span class="kbd">H</span></button>
+        <div class="menu-sep"></div>
+        <label class="menu-check"><input type="checkbox" id="toggle-grid" checked /> Show grid</label>
+        <label class="menu-check"><input type="checkbox" id="toggle-shadow" checked /> Show shadows</label>
+        <label class="menu-check"><input type="checkbox" id="toggle-rot" /> Auto-rotate</label>
+      </div>
+    </div>
+
     <div class="menu" id="menu-views">
       <button class="btn menu-btn">🧭 Views ▾</button>
       <div class="menu-list">
@@ -112,13 +129,19 @@
     <div id="loader" class="loading" hidden><span class="spinner"></span><span id="loader-msg">Loading…</span></div>
     <div id="toast" class="toast" hidden></div>
     <div id="badge" class="badge" hidden></div>
+
+    <div class="navrail">
+      <button class="navbtn on" data-move="orbit" title="Orbit — drag to rotate (1)">⟳</button>
+      <button class="navbtn" data-move="pan" title="Pan — drag to slide (2)">✥</button>
+      <button class="navbtn" data-move="zoom" title="Zoom — drag up / down (3)">🔍</button>
+      <div class="navsep"></div>
+      <button class="navbtn" id="rail-fit" title="Fit model (F)">⤢</button>
+      <button class="navbtn" id="rail-home" title="Home view (H)">⌂</button>
+    </div>
+
+    <div id="statusbar" class="status-pill" hidden><span id="status"></span></div>
   </div>
 </main>
-
-<footer id="statusbar">
-  <span id="status">Ready — open or drop a model to begin.</span>
-  <span id="tris"></span>
-</footer>
 
 <input id="file-input" type="file" multiple hidden />
 
